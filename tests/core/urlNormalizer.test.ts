@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { normalizeUrl } from "../../src/core/urlNormalizer";
 
 describe("normalizeUrl", () => {
-  it("removes common tracking parameters and hash fragments", () => {
+  it("removes common tracking parameters and preserves hash fragments", () => {
     expect(
       normalizeUrl("https://example.com/page?utm_source=x&gclid=abc&id=42#section")
-    ).toBe("https://example.com/page?id=42");
+    ).toBe("https://example.com/page?id=42#section");
   });
 
   it("normalizes host casing and removes trailing slashes from non-root paths", () => {
@@ -41,6 +41,18 @@ describe("normalizeUrl", () => {
   it("preserves non-tracking query parameters", () => {
     expect(normalizeUrl("https://example.com/page?category=docs&id=42")).toBe(
       "https://example.com/page?category=docs&id=42"
+    );
+  });
+
+  it("keeps hash-routed URLs distinct", () => {
+    expect(normalizeUrl("https://app.example.com/#/billing")).not.toBe(
+      normalizeUrl("https://app.example.com/#/settings")
+    );
+  });
+
+  it("removes tracking params while preserving ref and other query params", () => {
+    expect(normalizeUrl("https://example.com/page?utm_source=x&ref=docs&id=42")).toBe(
+      "https://example.com/page?ref=docs&id=42"
     );
   });
 });

@@ -15,7 +15,6 @@ export function normalizeUrl(input: string): string {
     const url = new URL(trimmed);
     url.protocol = url.protocol.toLowerCase();
     url.hostname = url.hostname.toLowerCase();
-    url.hash = "";
 
     for (const key of Array.from(url.searchParams.keys())) {
       const normalizedKey = key.toLowerCase();
