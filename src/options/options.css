@@ -1,0 +1,13 @@
+body {
+  margin: 0;
+  font-family: Arial, "Microsoft YaHei", sans-serif;
+  background: #f5f7fb;
+  color: #1f2937;
+}
+
+.page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 32px;
+}
+

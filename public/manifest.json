@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Bookmark Manager",
+  "description": "Safely clean duplicates, classify bookmarks, and create local backups.",
+  "version": "0.1.0",
+  "permissions": ["bookmarks", "storage", "downloads", "alarms"],
+  "background": {
+    "service_worker": "assets/background.js",
+    "type": "module"
+  },
+  "options_page": "options.html",
+  "action": {
+    "default_title": "Bookmark Manager",
+    "default_popup": "popup.html"
+  }
+}
+

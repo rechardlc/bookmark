@@ -1,0 +1,20 @@
+body {
+  margin: 0;
+  min-width: 260px;
+  font-family: Arial, "Microsoft YaHei", sans-serif;
+  color: #1f2937;
+}
+
+.popup {
+  padding: 16px;
+}
+
+button {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
