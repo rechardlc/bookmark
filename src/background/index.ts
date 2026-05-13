@@ -8,6 +8,7 @@ import {
   downloadText,
   getBackups,
   getBookmarkTree,
+  moveBookmark,
   removeBookmark,
   saveBackup,
   saveOperation
@@ -33,14 +34,24 @@ chrome.runtime.onMessage.addListener((request: ExtensionRequest, _sender, sendRe
   return true;
 });
 
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === "bookmark-manager-daily-backup") {
+    void createAndStoreBackup().catch((error: unknown) => {
+      console.error("Scheduled bookmark backup failed", error);
+    });
+  }
+});
+
 async function handleRequest(request: ExtensionRequest): Promise<unknown> {
   if (request.type === "scan") return scanBookmarks();
   if (request.type === "create-backup") return createAndStoreBackup();
   if (request.type === "cleanup-exact-duplicates") {
     return cleanupExactDuplicates(request.bookmarkIds);
   }
+  if (request.type === "apply-classification") return applyClassification(request.moves);
   if (request.type === "export-backup") return exportBackup(request.backupId, request.format);
-  throw new Error(`Unsupported request type: ${request.type}`);
+  if (request.type === "restore-backup") return restoreBackup(request.backupId);
+  throw new Error("Unsupported request type");
 }
 
 async function scanBookmarks(): Promise<ScanResult> {
@@ -101,5 +112,41 @@ async function exportBackup(backupId: string, format: "json" | "html") {
   }
 
   return { exported: backup.id, format };
+}
+
+async function applyClassification(moves: Array<{ bookmarkId: string; parentId: string }>) {
+  const backup = await createAndStoreBackup();
+  for (const move of moves) {
+    await moveBookmark(move.bookmarkId, move.parentId);
+  }
+  const operation = createOperationRecord({
+    type: "classification",
+    createdAt: new Date().toISOString(),
+    backupId: backup.id,
+    summary: `Moved ${moves.length} bookmarks`,
+    details: { moves }
+  });
+  await saveOperation(operation);
+  return operation;
+}
+
+async function restoreBackup(backupId: string) {
+  const backups = await getBackups();
+  const backup = backups.find((item) => item.id === backupId);
+  if (!backup) throw new Error("Backup not found");
+
+  const safetyBackup = await createAndStoreBackup();
+  const operation = createOperationRecord({
+    type: "restore",
+    createdAt: new Date().toISOString(),
+    backupId: safetyBackup.id,
+    summary: `Restore requested for ${backup.id}`,
+    details: {
+      restoredBackupId: backup.id,
+      note: "Full destructive restore is deferred until manual verification confirms Chrome root behavior."
+    }
+  });
+  await saveOperation(operation);
+  return operation;
 }
 

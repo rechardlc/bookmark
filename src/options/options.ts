@@ -66,6 +66,7 @@ function render() {
   document.querySelector("#create-backup")?.addEventListener("click", () => void createBackup());
   document.querySelector("#export-json")?.addEventListener("click", () => void exportLatest("json"));
   document.querySelector("#export-html")?.addEventListener("click", () => void exportLatest("html"));
+  document.querySelector("#restore-latest")?.addEventListener("click", () => void restoreLatest());
 }
 
 function tabButton(id: typeof activeTab, label: string) {
@@ -166,6 +167,7 @@ function renderBackups() {
       <button id="create-backup" type="button">立即备份</button>
       <button id="export-json" type="button" ${latest ? "" : "disabled"}>导出 JSON</button>
       <button id="export-html" type="button" ${latest ? "" : "disabled"}>导出 HTML</button>
+      <button id="restore-latest" type="button" ${latest ? "" : "disabled"}>恢复最近备份</button>
     </div>
     <p>${latest ? `最近备份：${escapeHtml(latest.createdAt)}` : "还没有备份。"}</p>
   `;
@@ -209,6 +211,22 @@ async function exportLatest(format: "json" | "html") {
     await sendRequest({ type: "export-backup", backupId, format });
   } catch (error) {
     statusMessage = error instanceof Error ? error.message : "导出失败";
+    render();
+  }
+}
+
+async function restoreLatest() {
+  const backupId = scanResult?.latestBackup?.id;
+  if (!backupId) return;
+  const confirmed = window.confirm("恢复是高风险操作。当前版本会先记录恢复请求并保留安全备份。继续？");
+  if (!confirmed) return;
+  statusMessage = "正在记录恢复请求并创建安全备份...";
+  render();
+  try {
+    await sendRequest({ type: "restore-backup", backupId });
+    await refreshScan();
+  } catch (error) {
+    statusMessage = error instanceof Error ? error.message : "恢复请求失败";
     render();
   }
 }

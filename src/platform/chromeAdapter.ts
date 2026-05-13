@@ -60,6 +60,37 @@ export async function createFolder(
   });
 }
 
+export async function removeTree(id: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    chrome.bookmarks.removeTree(id, () => {
+      const error = chrome.runtime.lastError;
+      if (error) {
+        reject(new Error(error.message));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+export async function createBookmark(input: {
+  parentId: string;
+  title: string;
+  url?: string;
+  index?: number;
+}): Promise<chrome.bookmarks.BookmarkTreeNode> {
+  return new Promise((resolve, reject) => {
+    chrome.bookmarks.create(input, (node) => {
+      const error = chrome.runtime.lastError;
+      if (error) {
+        reject(new Error(error.message));
+        return;
+      }
+      resolve(node);
+    });
+  });
+}
+
 export async function getBackups(): Promise<BackupRecord[]> {
   const result = await chrome.storage.local.get(BACKUPS_KEY);
   return result[BACKUPS_KEY] ?? [];
