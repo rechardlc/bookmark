@@ -37,7 +37,7 @@ export function exportBookmarksHtml(tree: BookmarkTreeNode[]): string {
 function appendNodeHtml(lines: string[], node: BookmarkTreeNode, depth: number) {
   const indent = "    ".repeat(depth);
   if (node.url) {
-    const addDate = node.dateAdded ? Math.floor(node.dateAdded / 1000) : "";
+    const addDate = node.dateAdded !== undefined ? Math.floor(node.dateAdded / 1000) : "";
     lines.push(`${indent}<DT><A HREF="${escapeHtml(node.url)}" ADD_DATE="${addDate}">${escapeHtml(node.title)}</A>`);
     return;
   }
