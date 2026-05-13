@@ -22,7 +22,7 @@ Expected:
 1. Open `chrome://extensions`.
 2. Enable Developer mode.
 3. Click "Load unpacked".
-4. Select `C:\Users\33002\Desktop\bookmark\.worktrees\codex\bookmark-manager\dist`.
+4. Select `C:\Users\33002\Desktop\bookmark\dist`.
 5. Open the extension options page.
 
 ## Synthetic Bookmark Test
