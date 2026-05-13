@@ -73,3 +73,22 @@ export interface OperationRecord {
   summary: string;
   details: unknown;
 }
+
+export type ExtensionRequest =
+  | { type: "scan" }
+  | { type: "create-backup" }
+  | { type: "cleanup-exact-duplicates"; bookmarkIds: string[] }
+  | { type: "apply-classification"; moves: Array<{ bookmarkId: string; parentId: string }> }
+  | { type: "export-backup"; backupId: string; format: "json" | "html" };
+
+export type ExtensionResponse<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: string };
+
+export interface ScanResult {
+  bookmarkCount: number;
+  folderCount: number;
+  duplicateGroups: DuplicateGroup[];
+  classificationProposals: ClassificationProposal[];
+  latestBackup?: BackupRecord;
+}
