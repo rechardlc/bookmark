@@ -17,6 +17,7 @@ describe("backupSerializer", () => {
 
     expect(backup.tree).not.toBe(sampleTree);
     expect(backup.tree[0].children).not.toBe(sampleTree[0].children);
+    expect(backup.tree[0].children?.[0]).not.toBe(sampleTree[0].children?.[0]);
   });
 
   it("exports Netscape bookmark HTML", () => {
