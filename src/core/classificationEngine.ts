@@ -16,6 +16,11 @@ const FALLBACK_CATEGORIES = [
   { title: "Read Later", tokens: ["read", "later", "saved"] }
 ];
 
+const TOKEN_ALIASES = new Map([
+  ["openai", ["ai"]],
+  ["claude", ["ai"]]
+]);
+
 export function proposeClassifications(index: BookmarkIndex): ClassificationProposal[] {
   return index.bookmarks
     .map((bookmark) => proposeForBookmark(bookmark, index.folders))
@@ -26,14 +31,14 @@ function proposeForBookmark(
   bookmark: IndexedBookmark,
   folders: IndexedFolder[]
 ): ClassificationProposal | undefined {
-  const haystack = `${bookmark.title} ${bookmark.url}`.toLowerCase();
+  const tokens = tokenizeBookmark(bookmark);
   const existing = folders
     .map((folder) => ({
       folder,
-      score: scoreFolder(folder, haystack)
+      score: scoreFolder(folder, tokens)
     }))
-    .filter((item) => item.score > 0)
-    .sort((left, right) => right.score - left.score)[0];
+    .filter((item) => item.score > 0 && item.folder.id !== bookmark.parentId)
+    .sort(compareFolderScores)[0];
 
   if (existing) {
     return {
@@ -49,11 +54,20 @@ function proposeForBookmark(
   }
 
   const fallback = FALLBACK_CATEGORIES.find((category) =>
-    category.tokens.some((token) => haystack.includes(token))
+    category.tokens.some((token) => tokens.has(token))
   );
 
   if (fallback) {
-    const matchingFolder = folders.find((folder) => folder.title === fallback.title);
+    const sameTitleFolders = folders.filter(
+      (folder) => folder.title.toLowerCase() === fallback.title.toLowerCase()
+    );
+    const matchingFolder = sameTitleFolders
+      .filter((folder) => folder.id !== bookmark.parentId)
+      .sort(compareFolders)[0];
+
+    if (sameTitleFolders.length > 0 && !matchingFolder) {
+      return undefined;
+    }
 
     return {
       bookmarkId: bookmark.id,
@@ -61,7 +75,7 @@ function proposeForBookmark(
       url: bookmark.url,
       sourcePath: bookmark.path,
       destinationFolderId: matchingFolder?.id,
-      destinationFolderTitle: fallback.title,
+      destinationFolderTitle: matchingFolder?.title ?? fallback.title,
       confidence: 0.62,
       reason: `匹配标准分类「${fallback.title}」`
     };
@@ -78,10 +92,42 @@ function proposeForBookmark(
   };
 }
 
-function scoreFolder(folder: IndexedFolder, haystack: string): number {
+function tokenizeBookmark(bookmark: IndexedBookmark): Set<string> {
+  const tokens = tokenize(`${bookmark.title} ${bookmark.url}`);
+
+  for (const token of Array.from(tokens)) {
+    for (const alias of TOKEN_ALIASES.get(token) ?? []) {
+      tokens.add(alias);
+    }
+  }
+
+  return tokens;
+}
+
+function tokenize(value: string): Set<string> {
+  return new Set(
+    value
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter(Boolean)
+  );
+}
+
+function scoreFolder(folder: IndexedFolder, tokens: Set<string>): number {
   const words = folder.title
     .toLowerCase()
     .split(/[\s\-_/]+/)
     .filter(Boolean);
-  return words.filter((word) => haystack.includes(word)).length;
+  return words.filter((word) => tokens.has(word)).length;
+}
+
+function compareFolderScores(
+  left: { folder: IndexedFolder; score: number },
+  right: { folder: IndexedFolder; score: number }
+): number {
+  return right.score - left.score || compareFolders(left.folder, right.folder);
+}
+
+function compareFolders(left: IndexedFolder, right: IndexedFolder): number {
+  return left.title.localeCompare(right.title) || left.id.localeCompare(right.id);
 }
