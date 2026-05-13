@@ -36,15 +36,11 @@ describe("findDuplicateGroups", () => {
     expect(exact?.candidates.find((candidate) => candidate.id === "b")?.action).toBe("delete");
   });
 
-  it("marks same normalized URL with different title as medium-risk review", () => {
+  it("does not include low-risk exact duplicate candidates in medium-risk groups", () => {
     const groups = findDuplicateGroups(bookmarks);
     const medium = groups.find((group) => group.confidence === "medium-risk");
 
-    expect(medium?.candidates.map((candidate) => candidate.action)).toEqual([
-      "review",
-      "review",
-      "review"
-    ]);
+    expect(medium).toBeUndefined();
   });
 
   it("does not mark same-title URLs with different meaningful hashes as low-risk", () => {
@@ -66,5 +62,114 @@ describe("findDuplicateGroups", () => {
     ]);
 
     expect(groups.find((group) => group.confidence === "low-risk")).toBeUndefined();
+  });
+
+  it("marks same normalized URL with different titles as medium-risk review when no exact duplicates overlap", () => {
+    const groups = findDuplicateGroups([
+      {
+        id: "first",
+        title: "Example",
+        url: "https://example.com/?utm_source=newsletter",
+        dateAdded: 100,
+        path: ["Bookmarks Bar"]
+      },
+      {
+        id: "second",
+        title: "Example Docs",
+        url: "https://example.com/",
+        dateAdded: 200,
+        path: ["AI"]
+      }
+    ]);
+    const medium = groups.find((group) => group.confidence === "medium-risk");
+
+    expect(medium?.candidates.map((candidate) => candidate.id)).toEqual(["first", "second"]);
+    expect(medium?.candidates.map((candidate) => candidate.action)).toEqual(["review", "review"]);
+  });
+
+  it("keeps the Bookmarks Bar candidate over other folders", () => {
+    const groups = findDuplicateGroups([
+      {
+        id: "other",
+        title: "Example",
+        url: "https://example.com/",
+        dateAdded: 100,
+        path: ["Other Bookmarks"]
+      },
+      {
+        id: "bar",
+        title: "Example",
+        url: "https://example.com/",
+        dateAdded: 200,
+        path: ["Bookmarks Bar"]
+      }
+    ]);
+    const exact = groups.find((group) => group.confidence === "low-risk");
+
+    expect(exact?.candidates.find((candidate) => candidate.action === "keep")?.id).toBe("bar");
+  });
+
+  it("does not treat nested backup folders as the Bookmarks Bar root", () => {
+    const groups = findDuplicateGroups([
+      {
+        id: "backup",
+        title: "Example",
+        url: "https://example.com/",
+        dateAdded: 100,
+        path: ["Imported", "Old Bookmarks Bar Backup"]
+      },
+      {
+        id: "bar",
+        title: "Example",
+        url: "https://example.com/",
+        dateAdded: 200,
+        path: ["Bookmarks Bar"]
+      }
+    ]);
+    const exact = groups.find((group) => group.confidence === "low-risk");
+
+    expect(exact?.candidates.find((candidate) => candidate.action === "keep")?.id).toBe("bar");
+  });
+
+  it("keeps the earliest added candidate within equal folder priority", () => {
+    const groups = findDuplicateGroups([
+      {
+        id: "newer",
+        title: "Example",
+        url: "https://example.com/",
+        dateAdded: 200,
+        path: ["Other Bookmarks"]
+      },
+      {
+        id: "older",
+        title: "Example",
+        url: "https://example.com/",
+        dateAdded: 100,
+        path: ["AI"]
+      }
+    ]);
+    const exact = groups.find((group) => group.confidence === "low-risk");
+
+    expect(exact?.candidates.find((candidate) => candidate.action === "keep")?.id).toBe("older");
+  });
+
+  it("uses id as a deterministic tie-breaker when priority and date are equal", () => {
+    const groups = findDuplicateGroups([
+      {
+        id: "z",
+        title: "Example",
+        url: "https://example.com/",
+        path: ["Other Bookmarks"]
+      },
+      {
+        id: "a",
+        title: "Example",
+        url: "https://example.com/",
+        path: ["AI"]
+      }
+    ]);
+    const exact = groups.find((group) => group.confidence === "low-risk");
+
+    expect(exact?.candidates.find((candidate) => candidate.action === "keep")?.id).toBe("a");
   });
 });

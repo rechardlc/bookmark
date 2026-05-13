@@ -9,6 +9,7 @@ export function findDuplicateGroups(bookmarks: IndexedBookmark[]): DuplicateGrou
   const groups: DuplicateGroup[] = [];
   const byExact = new Map<string, IndexedBookmark[]>();
   const byUrl = new Map<string, IndexedBookmark[]>();
+  const lowRiskIds = new Set<string>();
 
   for (const bookmark of bookmarks) {
     const normalizedUrl = normalizeUrl(bookmark.url);
@@ -19,6 +20,9 @@ export function findDuplicateGroups(bookmarks: IndexedBookmark[]): DuplicateGrou
   for (const [key, members] of byExact) {
     if (members.length < 2) continue;
     const keepId = chooseBookmarkToKeep(members).id;
+    for (const bookmark of members) {
+      lowRiskIds.add(bookmark.id);
+    }
     groups.push({
       key,
       confidence: "low-risk",
@@ -30,14 +34,15 @@ export function findDuplicateGroups(bookmarks: IndexedBookmark[]): DuplicateGrou
   }
 
   for (const [key, members] of byUrl) {
-    if (members.length < 2) continue;
-    const titles = new Set(members.map((bookmark) => bookmark.title.trim().toLowerCase()));
+    const reviewMembers = members.filter((bookmark) => !lowRiskIds.has(bookmark.id));
+    if (reviewMembers.length < 2) continue;
+    const titles = new Set(reviewMembers.map((bookmark) => bookmark.title.trim().toLowerCase()));
     if (titles.size === 1) continue;
     groups.push({
       key,
       confidence: "medium-risk",
       reason: "规范化 URL 相同，但标题不同，需要人工确认",
-      candidates: members.map((bookmark) => toCandidate(bookmark, "review"))
+      candidates: reviewMembers.map((bookmark) => toCandidate(bookmark, "review"))
     });
   }
 
@@ -70,13 +75,16 @@ function chooseBookmarkToKeep(bookmarks: IndexedBookmark[]): IndexedBookmark {
     const leftScore = folderScore(left.path);
     const rightScore = folderScore(right.path);
     if (leftScore !== rightScore) return rightScore - leftScore;
-    return (left.dateAdded ?? Number.MAX_SAFE_INTEGER) - (right.dateAdded ?? Number.MAX_SAFE_INTEGER);
+    const dateComparison =
+      (left.dateAdded ?? Number.MAX_SAFE_INTEGER) -
+      (right.dateAdded ?? Number.MAX_SAFE_INTEGER);
+    if (dateComparison !== 0) return dateComparison;
+    return left.id.localeCompare(right.id);
   })[0];
 }
 
 function folderScore(path: string[]): number {
-  const joined = path.join("/").toLowerCase();
-  if (joined.includes("bookmarks bar")) return 3;
+  if (path[0]?.toLowerCase() === "bookmarks bar") return 3;
   if (path.length > 0) return 2;
   return 1;
 }
